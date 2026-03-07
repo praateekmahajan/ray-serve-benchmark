@@ -24,7 +24,8 @@ from typing import Any
 
 from loguru import logger
 
-from utils import start_inference_server, write_results, write_summary
+from inference_server import start_inference_server
+from utils import write_results, write_summary
 
 
 def run_vllm_bench(
