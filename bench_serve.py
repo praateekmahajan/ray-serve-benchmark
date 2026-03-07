@@ -19,12 +19,15 @@ import argparse
 import json
 import subprocess
 import sys
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 from loguru import logger
 
 from inference_server import start_inference_server
+from ray_client import RayCluster
 from utils import write_results, write_summary
 
 
@@ -147,28 +150,52 @@ def main() -> int:
 
     try:
         log_dir = output_path / "logs"
-        server = start_inference_server(
-            args.model_type,
-            args.model_id,
-            args.engine_kwargs,
-            args.autoscaling_config,
-            log_dir=log_dir,
-        )
+        cluster = None
+
+        # Start Ray cluster for ray-serve model type
+        if args.model_type == "ray-serve":
+            t0_cluster = time.perf_counter()
+            cluster = RayCluster(
+                temp_dir=f"/tmp/ray_{uuid.uuid4().hex[:8]}",
+                log_file=log_dir / "ray_cluster.log",
+            )
+            cluster.start()
+            cluster_startup_s = time.perf_counter() - t0_cluster
+            logger.info(f"Ray cluster started in {cluster_startup_s:.1f}s")
 
         try:
-            bench_results = run_vllm_bench(
-                endpoint=server.endpoint,
-                model_id=args.model_id,
-                max_concurrency=args.max_concurrency,
-                num_prompts=args.num_prompts,
-                input_len=args.input_len,
-                output_len=args.output_len,
-                result_dir=output_path / "vllm_bench_raw",
-                backend=args.backend,
-                dataset_name=args.dataset_name,
+            t0_server = time.perf_counter()
+            server = start_inference_server(
+                args.model_type,
+                args.model_id,
+                args.engine_kwargs,
+                args.autoscaling_config,
+                log_dir=log_dir,
+                cluster=cluster,
             )
+            server_startup_s = time.perf_counter() - t0_server
+            logger.info(f"Server startup took {server_startup_s:.1f}s (model ready: {server.startup_s:.1f}s)")
+
+            try:
+                t0_bench = time.perf_counter()
+                bench_results = run_vllm_bench(
+                    endpoint=server.endpoint,
+                    model_id=args.model_id,
+                    max_concurrency=args.max_concurrency,
+                    num_prompts=args.num_prompts,
+                    input_len=args.input_len,
+                    output_len=args.output_len,
+                    result_dir=output_path / "vllm_bench_raw",
+                    backend=args.backend,
+                    dataset_name=args.dataset_name,
+                )
+                bench_duration_s = time.perf_counter() - t0_bench
+                logger.info(f"Benchmark took {bench_duration_s:.1f}s")
+            finally:
+                server.stop()
         finally:
-            server.stop()
+            if cluster is not None:
+                cluster.stop()
 
         metrics = {
             "is_success": True,
