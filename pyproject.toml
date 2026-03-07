@@ -5,10 +5,26 @@ description = "Standalone Ray Serve vs vLLM direct benchmarking"
 requires-python = ">=3.10,<3.13"
 dependencies = [
     "ray[default,serve,llm]>=2.54",
-    "vllm>=0.8",
+    "vllm==0.15.1",
     "loguru",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff",
+    "pre-commit",
+]
+
+[tool.setuptools]
+py-modules = []
+
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 119
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "RUF"]
+ignore = ["T20", "D", "ANN"]

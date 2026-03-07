@@ -6,6 +6,7 @@ Supports two model types:
 """
 
 import atexit
+import contextlib
 import http
 import json
 import os
@@ -28,6 +29,7 @@ _HEALTH_TIMEOUT_S = 300
 # Port utility
 # ---------------------------------------------------------------------------
 
+
 def get_free_port(start_port: int = _VLLM_PORT) -> int:
     """Find a free port starting from start_port."""
     for port in range(start_port, 65535):
@@ -45,6 +47,7 @@ def get_free_port(start_port: int = _VLLM_PORT) -> int:
 # ---------------------------------------------------------------------------
 # Server handle
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class InferenceServer:
@@ -69,12 +72,13 @@ class InferenceServer:
 # Health check
 # ---------------------------------------------------------------------------
 
+
 def _wait_for_model_ready(port: int, timeout_s: int = _HEALTH_TIMEOUT_S) -> None:
     """Poll /v1/models until the server is ready."""
     models_url = f"http://localhost:{port}/v1/models"
     for attempt in range(timeout_s):
         try:
-            resp = urllib.request.urlopen(models_url, timeout=5)  # noqa: S310
+            resp = urllib.request.urlopen(models_url, timeout=5)
             if resp.status == http.HTTPStatus.OK:
                 logger.info(f"Model server ready after {attempt + 1}s")
                 return
@@ -89,6 +93,7 @@ def _wait_for_model_ready(port: int, timeout_s: int = _HEALTH_TIMEOUT_S) -> None
 # Engine kwargs → CLI args
 # ---------------------------------------------------------------------------
 
+
 def _engine_kwargs_to_vllm_args(engine_kwargs: dict[str, Any]) -> list[str]:
     """Convert engine_kwargs dict to vLLM CLI arguments."""
     args = []
@@ -97,7 +102,7 @@ def _engine_kwargs_to_vllm_args(engine_kwargs: dict[str, Any]) -> list[str]:
         if isinstance(value, bool):
             if value:
                 args.append(cli_key)
-        elif isinstance(value, (dict, list)):
+        elif isinstance(value, dict | list):
             args.extend([cli_key, json.dumps(value)])
         else:
             args.extend([cli_key, str(value)])
@@ -107,6 +112,7 @@ def _engine_kwargs_to_vllm_args(engine_kwargs: dict[str, Any]) -> list[str]:
 # ---------------------------------------------------------------------------
 # Ray Serve server
 # ---------------------------------------------------------------------------
+
 
 def _start_ray_serve(
     model_id: str,
@@ -163,10 +169,8 @@ def _start_ray_serve(
         serve.run(app, name="default", blocking=False, logging_config=logging_config)
         _wait_for_model_ready(port)
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             serve.shutdown()
-        except Exception:
-            pass
         raise
 
     startup_s = time.perf_counter() - t0
@@ -191,6 +195,7 @@ def _start_ray_serve(
 # ---------------------------------------------------------------------------
 # vLLM direct server
 # ---------------------------------------------------------------------------
+
 
 def _start_vllm_direct(
     model_id: str,
@@ -226,13 +231,12 @@ def _start_vllm_direct(
 
     log_fh = log_file.open("w")
     process = subprocess.Popen(
-        cmd, stdout=log_fh, stderr=subprocess.STDOUT, start_new_session=True, env=env,
+        cmd,
+        stdout=log_fh,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        env=env,
     )
-
-    t0 = time.perf_counter()
-    _wait_for_model_ready(port)
-    startup_s = time.perf_counter() - t0
-    logger.info(f"vLLM server started in {startup_s:.2f}s on port {port}")
 
     def _stop() -> None:
         logger.info("Stopping vLLM server...")
@@ -245,6 +249,17 @@ def _start_vllm_direct(
             pass
         log_fh.close()
 
+    t0 = time.perf_counter()
+    try:
+        _wait_for_model_ready(port)
+    except Exception:
+        _stop()
+        raise
+    startup_s = time.perf_counter() - t0
+    logger.info(f"vLLM server started in {startup_s:.2f}s on port {port}")
+
+    atexit.register(_stop)
+
     return InferenceServer(
         endpoint=f"http://localhost:{port}/v1",
         startup_s=startup_s,
@@ -255,6 +270,7 @@ def _start_vllm_direct(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def start_inference_server(
     model_type: str,
@@ -293,23 +309,60 @@ def start_inference_server(
 # Results writer
 # ---------------------------------------------------------------------------
 
+
 def write_results(results: dict[str, Any], output_path: str | Path) -> None:
     """Write benchmark results to params.json and metrics.json."""
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    if "params" in results:
-        params_path = output_path / "params.json"
-        params_data = {}
-        if params_path.exists():
-            params_data = json.loads(params_path.read_text())
-        params_data.update(results["params"])
-        params_path.write_text(json.dumps(params_data, indent=2, default=str))
+    for key in ("params", "metrics"):
+        if key not in results:
+            continue
+        path = output_path / f"{key}.json"
+        try:
+            existing = json.loads(path.read_text())
+        except FileNotFoundError:
+            existing = {}
+        existing.update(results[key])
+        path.write_text(json.dumps(existing, indent=2, default=str))
 
-    if "metrics" in results:
-        metrics_path = output_path / "metrics.json"
-        metrics_data = {}
-        if metrics_path.exists():
-            metrics_data = json.loads(metrics_path.read_text())
-        metrics_data.update(results["metrics"])
-        metrics_path.write_text(json.dumps(metrics_data, indent=2, default=str))
+
+def write_summary(results: dict[str, Any], output_path: str | Path) -> None:
+    """Write a human-readable summary.txt for quick inspection."""
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    metrics = results.get("metrics", {})
+    params = results.get("params", {})
+
+    lines = []
+    lines.append(f"Model:       {metrics.get('model_id', params.get('model_id', 'N/A'))}")
+    lines.append(f"Backend:     {metrics.get('model_type', params.get('model_type', 'N/A'))}")
+    lines.append(f"Concurrency: {metrics.get('max_concurrency', params.get('max_concurrency', 'N/A'))}")
+    lines.append(f"Prompts:     {metrics.get('num_prompts', params.get('num_prompts', 'N/A'))}")
+    lines.append(f"Input/Output:{metrics.get('input_len', 'N/A')} / {metrics.get('output_len', 'N/A')} tokens")
+    lines.append("")
+
+    if not metrics.get("is_success", False):
+        lines.append("Status: FAILED")
+    else:
+        lines.append("Status: SUCCESS")
+        lines.append(f"Startup:     {metrics.get('serve_startup_s', 0):.1f}s")
+        lines.append(f"Duration:    {metrics.get('duration', 0):.1f}s")
+        lines.append(f"Completed:   {metrics.get('completed', 'N/A')} requests")
+        lines.append("")
+        lines.append("Throughput:")
+        lines.append(f"  Requests:  {metrics.get('request_throughput', 0):.2f} req/s")
+        lines.append(f"  Output:    {metrics.get('output_throughput', 0):.1f} tok/s")
+        lines.append(f"  Total:     {metrics.get('total_token_throughput', 0):.1f} tok/s")
+        lines.append("")
+        lines.append("Latency (ms):          mean     median   p99      std")
+        for label, prefix in [("  TTFT", "ttft"), ("  TPOT", "tpot"), ("  ITL", "itl"), ("  E2EL", "e2el")]:
+            mean = metrics.get(f"mean_{prefix}_ms", 0)
+            median = metrics.get(f"median_{prefix}_ms", 0)
+            p99 = metrics.get(f"p99_{prefix}_ms", 0)
+            std = metrics.get(f"std_{prefix}_ms", 0)
+            lines.append(f"{label:18s} {mean:8.1f}   {median:8.1f}   {p99:8.1f}   {std:8.1f}")
+
+    lines.append("")
+    (output_path / "summary.txt").write_text("\n".join(lines))

@@ -24,7 +24,7 @@ from typing import Any
 
 from loguru import logger
 
-from utils import start_inference_server, write_results
+from utils import start_inference_server, write_results, write_summary
 
 
 def run_vllm_bench(
@@ -88,10 +88,6 @@ def run_vllm_bench(
     logger.info(f"vllm bench serve stdout:\n{result.stdout}")
 
     result_file = result_dir / result_filename
-    if not result_file.exists():
-        msg = f"Result file not found: {result_file}"
-        raise FileNotFoundError(msg)
-
     return json.loads(result_file.read_text())
 
 
@@ -196,6 +192,7 @@ def main() -> int:
         return 1
     finally:
         write_results(result_dict, output_path)
+        write_summary(result_dict, output_path)
 
 
 if __name__ == "__main__":
