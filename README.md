@@ -27,12 +27,24 @@ bash run.sh --gpus 0,1,2,3 --filter dp4
 bash run.sh --gpus 0,1,2,3 --env "RAY_SERVE_ENABLE_HA_PROXY=1,RAY_SERVE_THROUGHPUT_OPTIMIZED=1"
 ```
 
+## Full concurrency sweep
+
+`sweep.sh` runs `run.sh` across multiple concurrency levels (4, 64, 512) back-to-back:
+
+```bash
+# Run in a tmux session (takes a while — ~6 server startups per concurrency level)
+tmux new -s sweep
+bash sweep.sh 2>&1 | tee results/full_sweep.log
+```
+
+Edit the `for c in 4 64 512` loop in `sweep.sh` to change which concurrency levels are tested, and the `--gpus` flag to target different GPUs.
+
 ## Results
 
-Results are written to `results/run_<timestamp>/`:
+Results are written to `results/c<concurrency>_<timestamp>/`:
 
 ```
-results/run_2026-03-07T14:30:00+00:00/
+results/c64_2026-03-07T14:30:00+00:00/
 ├── summary.txt                        # all entries sorted by throughput
 ├── ray_serve_dp4_c64/
 │   ├── summary.txt                    # human-readable per-entry summary
