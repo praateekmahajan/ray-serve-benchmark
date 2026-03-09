@@ -62,8 +62,12 @@ def _wait_for_model_ready(port: int, timeout_s: int = _HEALTH_TIMEOUT_S) -> None
         try:
             with urllib.request.urlopen(models_url, timeout=5) as resp:
                 if resp.status == http.HTTPStatus.OK:
-                    logger.info(f"Model server ready after {attempt + 1}s")
-                    return
+                    body = json.loads(resp.read())
+                    models = body.get("data", [])
+                    if models:
+                        model_ids = [m.get("id", "?") for m in models]
+                        logger.info(f"Model server ready after {attempt + 1}s, models: {model_ids}")
+                        return
         except Exception:
             pass
         time.sleep(1)

@@ -100,7 +100,7 @@ TOTAL=${#FILTERED_CONFIGS[@]}
 
 # Create timestamped run directory
 RUN_TIMESTAMP="$(date -Iseconds)"
-RUN_DIR="${RESULTS_DIR}/run_${RUN_TIMESTAMP}"
+RUN_DIR="${RESULTS_DIR}/c${MAX_CONCURRENCY}_${RUN_TIMESTAMP}"
 mkdir -p "$RUN_DIR"
 
 echo "=== Ray Serve Bench ==="

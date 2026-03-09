@@ -73,7 +73,7 @@ class RayCluster:
         self.ray_port = get_free_port(self.ray_port)
         self.dashboard_port = get_free_port(self.dashboard_port)
 
-        ip_address = socket.gethostbyname(socket.gethostname())
+        ip_address = "127.0.0.1"
 
         cmd = [
             "ray",

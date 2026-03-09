@@ -7,6 +7,7 @@ dependencies = [
     "ray[default,serve,llm]>=2.54",
     "vllm==0.15.1",
     "loguru",
+    "boto3",
 ]
 
 [dependency-groups]
