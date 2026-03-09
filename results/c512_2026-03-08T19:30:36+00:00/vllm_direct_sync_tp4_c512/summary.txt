@@ -1,0 +1,21 @@
+Model:       google/gemma-3-12b-it
+Backend:     vllm-direct
+Concurrency: 512
+Prompts:     1000
+Input/Output:512 / 256 tokens
+
+Status: SUCCESS
+Startup:     65.0s
+Duration:    19.6s
+Completed:   1000 requests
+
+Throughput:
+  Requests:  51.10 req/s
+  Output:    13082.4 tok/s
+  Total:     39196.0 tok/s
+
+Latency (ms):          mean     median   p99      std
+  TTFT               1117.8      617.1     3156.0      887.7
+  TPOT                 33.7       35.2       35.9        2.6
+  ITL                  33.6       28.7       91.2       17.1
+  E2EL                  0.0        0.0        0.0        0.0

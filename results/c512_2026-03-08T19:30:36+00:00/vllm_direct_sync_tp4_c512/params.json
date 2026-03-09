@@ -1,0 +1,13 @@
+{
+  "results_dir": "results/c512_2026-03-08T19:30:36+00:00/vllm_direct_sync_tp4_c512",
+  "model_type": "vllm-direct",
+  "model_id": "google/gemma-3-12b-it",
+  "engine_kwargs": "{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}, \"no_async_scheduling\": true}",
+  "autoscaling_config": "{\"min_replicas\": 1, \"max_replicas\": 1}",
+  "max_concurrency": 512,
+  "num_prompts": 1000,
+  "input_len": 512,
+  "output_len": 256,
+  "backend": "openai-chat",
+  "dataset_name": "random"
+}

@@ -1,0 +1,12 @@
+Run: run_2026-03-07T02:52:30+00:00
+Model: google/gemma-3-12b-it
+Concurrency: 64  Prompts: 1000  Input: 512  Output: 256
+
+Entry                                            req/s     TTFT     TPOT     E2EL
+---------------------------------------------------------------------------------
+vllm_direct_async_tp4_c64                        31.91    194.5      6.9      0.0
+vllm_direct_async_dp4_c64                        27.71    112.3      8.4      0.0
+vllm_direct_sync_tp4_c64                         27.25    193.6      8.3      0.0
+vllm_direct_sync_dp4_c64                         26.41     85.1      9.0      0.0
+ray_serve_tp4_c64                                23.26    240.1      9.6      0.0
+ray_serve_dp4_c64                                22.53    136.7     10.3      0.0

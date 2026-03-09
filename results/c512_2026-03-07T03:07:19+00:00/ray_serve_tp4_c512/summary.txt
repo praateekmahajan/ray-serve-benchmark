@@ -1,0 +1,21 @@
+Model:       google/gemma-3-12b-it
+Backend:     ray-serve
+Concurrency: 512
+Prompts:     1000
+Input/Output:512 / 256 tokens
+
+Status: SUCCESS
+Startup:     72.5s
+Duration:    40.8s
+Completed:   1000 requests
+
+Throughput:
+  Requests:  24.51 req/s
+  Output:    6274.0 tok/s
+  Total:     18797.5 tok/s
+
+Latency (ms):          mean     median   p99      std
+  TTFT               2781.0     2490.8     5371.8      912.0
+  TPOT                 64.4       64.9       82.8       16.4
+  ITL                  65.7        0.0      291.0       85.2
+  E2EL                  0.0        0.0        0.0        0.0
