@@ -130,6 +130,7 @@ def main() -> int:
     parser.add_argument("--model-id", default="google/gemma-3-12b-it")
     parser.add_argument("--engine-kwargs", type=json.loads, default="{}")
     parser.add_argument("--autoscaling-config", type=json.loads, default='{"min_replicas": 1, "max_replicas": 1}')
+    parser.add_argument("--ingress-config", type=json.loads, default=None, help="Ingress deployment config JSON")
     parser.add_argument("--max-concurrency", type=int, default=64)
     parser.add_argument("--num-prompts", type=int, default=1000)
     parser.add_argument("--input-len", type=int, default=512)
@@ -145,6 +146,8 @@ def main() -> int:
     params = vars(args).copy()
     params["engine_kwargs"] = json.dumps(params["engine_kwargs"])
     params["autoscaling_config"] = json.dumps(params["autoscaling_config"])
+    if params.get("ingress_config") is not None:
+        params["ingress_config"] = json.dumps(params["ingress_config"])
 
     result_dict: dict[str, Any] = {"params": params, "metrics": {"is_success": False}}
 
@@ -170,6 +173,7 @@ def main() -> int:
                 args.model_id,
                 args.engine_kwargs,
                 args.autoscaling_config,
+                ingress_config=args.ingress_config,
                 log_dir=log_dir,
                 cluster=cluster,
             )

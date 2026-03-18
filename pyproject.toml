@@ -8,6 +8,8 @@ dependencies = [
     "vllm==0.15.1",
     "loguru",
     "boto3",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
 ]
 
 [dependency-groups]

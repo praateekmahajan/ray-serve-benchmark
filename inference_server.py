@@ -105,6 +105,7 @@ def _start_ray_serve(
     model_id: str,
     engine_kwargs: dict[str, Any],
     autoscaling_config: dict[str, Any],
+    ingress_config: dict[str, Any] | None = None,
     verbose: bool = False,
 ) -> InferenceServer:
     """Deploy Ray Serve with vLLM on an already-running Ray cluster."""
@@ -133,10 +134,15 @@ def _start_ray_serve(
     )
 
     build_args: dict[str, Any] = {"llm_configs": [llm_config]}
+
+    # Build ingress_deployment_config: merge quiet logging with user-provided config
+    ingress_deployment_config: dict[str, Any] = {}
     if quiet_env:
-        build_args["ingress_deployment_config"] = {
-            "ray_actor_options": {"runtime_env": quiet_env},
-        }
+        ingress_deployment_config["ray_actor_options"] = {"runtime_env": quiet_env}
+    if ingress_config:
+        ingress_deployment_config.update(ingress_config)
+    if ingress_deployment_config:
+        build_args["ingress_deployment_config"] = ingress_deployment_config
 
     port = get_free_port(_VLLM_PORT)
     app = build_openai_app(build_args)
@@ -260,6 +266,7 @@ def start_inference_server(
     model_id: str,
     engine_kwargs: dict[str, Any] | None = None,
     autoscaling_config: dict[str, Any] | None = None,
+    ingress_config: dict[str, Any] | None = None,
     log_dir: str | Path | None = None,
     verbose: bool = False,
     cluster: RayCluster | None = None,
@@ -271,6 +278,7 @@ def start_inference_server(
         model_id: HuggingFace model ID
         engine_kwargs: vLLM engine kwargs (tensor_parallel_size, etc.)
         autoscaling_config: Ray Serve autoscaling config (only for ray-serve)
+        ingress_config: Ingress deployment config for Ray Serve (e.g. autoscaling_config for ingress)
         log_dir: Directory for server logs
         verbose: Keep full logging if True
         cluster: A running RayCluster (required for ray-serve)
@@ -285,7 +293,9 @@ def start_inference_server(
         if cluster is None:
             msg = "A running RayCluster must be provided for ray-serve model type"
             raise ValueError(msg)
-        return _start_ray_serve(cluster, model_id, engine_kwargs, autoscaling_config, verbose=verbose)
+        return _start_ray_serve(
+            cluster, model_id, engine_kwargs, autoscaling_config, ingress_config=ingress_config, verbose=verbose
+        )
     elif model_type == "vllm-direct":
         return _start_vllm_direct(model_id, engine_kwargs, log_dir=log_dir)
     else:
