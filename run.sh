@@ -66,23 +66,24 @@ fi
 # ──────────────────────────────────────────────────────────────────────
 # Configuration table
 #
-# Format: name|model_type|engine_kwargs|autoscaling_config
+# Format: name|model_type|engine_kwargs|autoscaling_config|ingress_config
 #
 # model_type: ray-serve | vllm-direct
 # engine_kwargs: JSON dict passed to vLLM engine
 # autoscaling_config: JSON dict for Ray Serve autoscaling (ignored for vllm-direct)
+# ingress_config: JSON dict for Ray Serve ingress deployment config (optional)
 # ──────────────────────────────────────────────────────────────────────
 
 declare -a CONFIGS=(
     # ── DP4 (4 replicas on 4 GPUs, TP=1) ──
-    "ray_serve_dp4|ray-serve|{\"tensor_parallel_size\": 1, \"limit_mm_per_prompt\": {\"image\": 0}}|{\"min_replicas\": 4, \"max_replicas\": 4}"
-    "vllm_direct_async_dp4|vllm-direct|{\"tensor_parallel_size\": 1, \"data_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}|"
-    "vllm_direct_sync_dp4|vllm-direct|{\"tensor_parallel_size\": 1, \"data_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}, \"no_async_scheduling\": true}|"
+    "ray_serve_dp4|ray-serve|{\"tensor_parallel_size\": 1, \"limit_mm_per_prompt\": {\"image\": 0}}|{\"min_replicas\": 4, \"max_replicas\": 4}|"
+    "vllm_direct_async_dp4|vllm-direct|{\"tensor_parallel_size\": 1, \"data_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}||"
+    "vllm_direct_sync_dp4|vllm-direct|{\"tensor_parallel_size\": 1, \"data_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}, \"no_async_scheduling\": true}||"
 
     # ── TP4 (1 replica across 4 GPUs, TP=4) ──
-    "ray_serve_tp4|ray-serve|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}|{\"min_replicas\": 1, \"max_replicas\": 1}"
-    "vllm_direct_async_tp4|vllm-direct|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}|"
-    "vllm_direct_sync_tp4|vllm-direct|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}, \"no_async_scheduling\": true}|"
+    "ray_serve_tp4|ray-serve|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}|{\"min_replicas\": 1, \"max_replicas\": 1}|"
+    "vllm_direct_async_tp4|vllm-direct|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}}||"
+    "vllm_direct_sync_tp4|vllm-direct|{\"tensor_parallel_size\": 4, \"limit_mm_per_prompt\": {\"image\": 0}, \"no_async_scheduling\": true}||"
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ echo ""
 
 RUN_IDX=0
 for config_str in "${FILTERED_CONFIGS[@]}"; do
-    IFS='|' read -r config_name model_type engine_kwargs autoscaling_config <<< "$config_str"
+    IFS='|' read -r config_name model_type engine_kwargs autoscaling_config ingress_config <<< "$config_str"
 
     for run in $(seq 1 "$NUM_RUNS"); do
         RUN_IDX=$((RUN_IDX + 1))
@@ -143,6 +144,9 @@ for config_str in "${FILTERED_CONFIGS[@]}"; do
         )
         if [[ -n "$autoscaling_config" ]]; then
             bench_args+=(--autoscaling-config="${autoscaling_config}")
+        fi
+        if [[ -n "$ingress_config" ]]; then
+            bench_args+=(--ingress-config="${ingress_config}")
         fi
 
         python bench_serve.py "${bench_args[@]}"
