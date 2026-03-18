@@ -1,0 +1,32 @@
+Experiment: ingress_exp_2026-03-16T22:29:09+00:00
+Model: google/gemma-3-12b-it
+Concurrencies: 8 64 256
+Num prompts: 400 3200 12800
+Input: 512  Output: 256
+
+Entry                                                 req/s     TTFT     TPOT     E2EL
+--------------------------------------------------------------------------------------
+vllm_async_dp4_c256_p12800                            66.01    107.6     14.7      0.0
+vllm_sync_dp4_c256_p12800                             60.67     92.5     16.1      0.0
+ray_serve_4ingress_dp4_c256_p12800                    57.20    184.1     16.7      0.0
+vllm_async_tp4_c256_p12800                            53.69    296.1     17.5      0.0
+vllm_sync_tp4_c256_p12800                             43.88    262.4     21.8      0.0
+ray_serve_4ingress_tp4_c256_p12800                    40.23    581.5     22.5      0.0
+ray_serve_dp4_c256_p12800                             39.80   1406.2     19.4      0.0
+vllm_async_tp4_c64_p3200                              31.85    173.1      7.2      0.0
+ray_serve_tp4_c256_p12800                             31.56   1296.3     26.2      0.0
+vllm_async_dp4_c64_p3200                              28.45     58.0      8.5      0.0
+vllm_sync_tp4_c64_p3200                               27.77    181.2      8.3      0.0
+vllm_sync_dp4_c64_p3200                               26.29     44.4      9.3      0.0
+ray_serve_4ingress_tp4_c64_p3200                      25.21    199.4      9.1      0.0
+ray_serve_4ingress_dp4_c64_p3200                      24.21     80.7      9.9      0.0
+ray_serve_tp4_c64_p3200                               23.80    177.9      9.8      0.0
+ray_serve_dp4_c64_p3200                               23.02     95.6     10.4      0.0
+vllm_async_tp4_c8_p400                                 6.30     60.8      4.7      0.0
+vllm_sync_tp4_c8_p400                                  5.57     61.5      5.4      0.0
+ray_serve_4ingress_tp4_c8_p400                         5.13    123.7      5.6      0.0
+ray_serve_tp4_c8_p400                                  5.10    116.9      5.7      0.0
+vllm_async_dp4_c8_p400                                 4.66     37.6      6.5      0.0
+vllm_sync_dp4_c8_p400                                  4.33     31.2      7.1      0.0
+ray_serve_4ingress_dp4_c8_p400                         4.10     68.7      7.3      0.0
+ray_serve_dp4_c8_p400                                  4.08     69.7      7.4      0.0
